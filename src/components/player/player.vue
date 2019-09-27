@@ -17,7 +17,11 @@
         <h1 class="title" v-html="currentSong.name"></h1>
         <h2 class="subtitle" v-html="currentSong.singer"></h2>
       </div>
-      <div class="middle">
+      <div class="middle"
+        @touchstart="touchMiddleStart"
+        @touchmove="touchMiddleMove"
+        @touchend="touchMiddleEnd"
+      >
         <div class="middle-l">
           <div class="cd-wrapper" ref="cdWrapper">
             <div class="cd" :class="cdRotate">
@@ -28,10 +32,27 @@
             <div class="playing-lyric"></div>
           </div>
         </div>
-        <div class="middle-r">
-        </div>
+        <Scroll class="middle-r" ref="lyricList" :data="currentLyric && currentLyric.lines">
+          <div class="lyric-wrapper">
+            <div v-if="currentLyric">
+              <p
+                class="text"
+                v-for="(line, index) in currentLyric.lines"
+                :key="index"
+                :class="{'current': currentLineNum === index}"
+                ref="lyricLine"
+              >
+              {{line.txt}}
+              </p>
+            </div>
+          </div>
+        </Scroll>
       </div>
       <div class="bottom">
+        <div class="dot-wrapper">
+          <div class="dot" :class="{'active': currentShowDot === 'cd'}"></div>
+          <div class="dot" :class="{'active': currentShowDot === 'lyric'}"></div>
+        </div>
         <div class="progress-wrapper">
           <span class="time time-l">{{format(currentTime)}}</span>
           <div class="progress-bar-wrapper">
@@ -90,18 +111,25 @@ import animations from 'create-keyframe-animation'
 import ProgressBar from 'base/progress-bar/progress-bar.vue'
 import ProgressCircle from 'base/progress-circle/progress-circle.vue'
 import Lyric from 'lyric-parser'
+import Scroll from 'base/scroll/scroll.vue'
 export default {
   data() {
     return {
       url: '',
       currentLyric: null, // 歌词
       currentTime: 0, // 时间
-      radius: 32
+      radius: 32,
+      currentShowDot: 'cd', // 播放器点的显示
+      currentLineNum: 0 // 正确的歌词行号
     }
+  },
+  created() {
+    this.touch = {} // 定义滑动对象
   },
   components: {
     ProgressBar,
-    ProgressCircle
+    ProgressCircle,
+    Scroll
   },
   computed: {
     normalIcon() {
@@ -291,6 +319,26 @@ export default {
       })
       this.setCurrentIndex(index)
     },
+    touchMiddleStart(e) {
+      this.touch.init = true
+      const touch = e.touches[0]
+      this.touch.StartX = touch.pageX
+      this.touch.StartY = touch.pageY
+    },
+    touchMiddleMove(e) {
+      if (!this.touch.init) return
+      const touch = e.touches[0]
+      const deltX = touch.pageX - this.touch.StartX
+      const deltY = touch.pageY - this.touch.StartY
+      // 如果Y轴的偏移比X轴的偏移要大，则认为上滑，不触发左右滑动
+      if (Math.abs(deltY) > Math.abs(deltX)) return
+      const left = this.currentShowDot === 'cd' ? 0 : -window.innerWidth // 歌词部分距离右边距的距离
+      const width = Math.min(0, Math.max(-window.innerWidth, left + deltX)) // 偏移量
+      this.$refs.lyricList.$el.style.transform = `translate3d(${width}px, 0, 0)`
+    },
+    touchMiddleEnd(e) {
+
+    },
     /**
      * 描述: 获取歌词并处理
      * 参数: 无
@@ -298,9 +346,27 @@ export default {
      */
     _getLyrics() {
       this.currentSong.getLyrics().then((lyric) => {
-        this.currentLyric = new Lyric(lyric) // 使用lyric-parser来处理歌词
+        this.currentLyric = new Lyric(lyric, this._handleLyric) // 使用lyric-parser来处理歌词
         console.log(this.currentLyric)
+        if (this.playing) {
+          this.currentLyric.play()
+        }
       })
+    },
+    /**
+     * 描述: 歌词播放时候的回调函数
+     * 参数:
+     *       {linenum, text}: 对应的行数以及里面的文本
+     * 功能: 歌曲到正确行数后，高亮歌词显示和自动滚动歌词
+     */
+    _handleLyric({ lineNum, text }) {
+      this.currentLineNum = lineNum // 正确的行数
+      if (lineNum > 5) {
+        let scrollEL = this.$refs.lyricLine[lineNum - 5]
+        this.$refs.lyricList.scroll.scrollToElement(scrollEL, 1000)
+      } else {
+        this.$refs.lyricList.scroll.scrollToElement(0, 0, 1000)
+      }
     },
     // 格式化秒
     _pad(num, n = 2) {
