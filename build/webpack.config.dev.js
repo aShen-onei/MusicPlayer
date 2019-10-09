@@ -7,6 +7,7 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 const webpack = require('webpack')
 const express = require('express')
 const axios = require('axios')
+const FriendlyErrorsWebpackPlugin = require('friendly-errors-webpack-plugin')
 var app = express()
 var apiRouters = express.Router()
 app.use('/api', apiRouters)
@@ -40,7 +41,7 @@ const config = {
         },
         open:true,
         hot:true,
-        useLocalIp:true,
+        useLocalIp:true, 
         stats:{
             all:false,
             assets:true,
@@ -128,6 +129,7 @@ const config = {
     plugins:[
         new webpack.HotModuleReplacementPlugin(),
         new webpack.NamedModulesPlugin(),
+        new webpack.ProgressPlugin(),
         new HtmlWebpackPlugin({
             filename:'index.html',
             template:'./index.html',
@@ -136,6 +138,12 @@ const config = {
         new VueLoaderPlugin(),
         new MiniCssExtractPlugin({
             filename:'[name].css'
+        }),
+        new FriendlyErrorsWebpackPlugin({
+            compilationSuccessInfo: {
+                messages: [`App Running At `],
+                notes: ['if you want build a bundle,please use npm run build'],
+            },
         })
     ]
 }

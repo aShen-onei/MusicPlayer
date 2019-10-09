@@ -1,12 +1,13 @@
 <template>
-  <div class="singer">
-    <ListView :data="singers" @select="selectSinger"></ListView>
+  <div class="singer" ref="singer">
+    <ListView :data="singers" @select="selectSinger" ref="listView"></ListView>
     <router-view></router-view>
   </div>
 </template>
 <script>
 import { getSingerList } from '@/api/singer.js'
 import { setTimeout } from 'timers'
+import { playListMixins } from 'commons/js/mixins.js'
 // 直接调用mutations
 import { mapMutations } from 'vuex'
 import SingerList from 'commons/json/singer.json'
@@ -19,6 +20,7 @@ export default {
       singers: []
     }
   },
+  mixins: [playListMixins],
   created() {
     setTimeout(() => {
       // this._getSingerList()
@@ -29,6 +31,17 @@ export default {
     ListView
   },
   methods: {
+    /**
+     * 描述: 迷你播放器存在时调整列表高度  
+     * 参数:
+     *       playList: 歌曲列表  
+     * 功能: 增加歌曲列表距离底部的距离，避免被迷你播放器遮挡  
+     */
+    handleMiniPlayer(playList) {
+      const bottom = playList.length > 0 ? '60px' : ''
+      this.$refs.singer.style.bottom = bottom // 增加底部距离
+      this.$refs.listView.refresh() // 重新刷新scroll组件
+    },
     selectSinger(item) {
       this.$router.push({
         path: `/singer/${item.id}`

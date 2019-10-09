@@ -26,7 +26,6 @@ export const selectPlay = function({ commit, state }, { list, index }) {
 }
 // 歌手列表处点击随机播放全部
 export const randomPlay = function ({ commit, state }, { list }) {
-  console.log(list)
   // 设置播放模式
   commit(types.SET_MODE, playMode.random)
   // 设置播放列表

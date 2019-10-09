@@ -1,5 +1,5 @@
 <template>
-  <div class="recommand">
+  <div class="recommand" ref="recommand">
     <Scroll ref="scroll" class="recommand-content" :data="discList">
       <div>
         <div v-if="recommands.length" class="slider-wrapper">
@@ -37,6 +37,7 @@ import Slider from 'base/slider/slider.vue'
 import Scroll from 'base/scroll/scroll.vue'
 import Loading from 'base/loading/loading.vue'
 import { getRecommand, getDiscList } from '@/api/recommand.js'
+import { playListMixins } from 'commons/js/mixins.js'
 import recommandJSON from 'commons/json/recommand.json'
 export default {
   data() {
@@ -45,6 +46,7 @@ export default {
       discList: recommandJSON.data.discList // 歌单
     }
   },
+  mixins: [playListMixins],
   components: {
     Slider,
     Scroll,
@@ -55,6 +57,17 @@ export default {
     this._getDiscList()
   },
   methods: {
+    /**
+     * 描述: 迷你播放器存在时调整列表高度  
+     * 参数:
+     *       playList: 歌曲列表  
+     * 功能: 增加歌曲列表距离底部的距离，避免被迷你播放器遮挡  
+     */
+    handleMiniPlayer(playList) {
+      const bottom = playList.length > 0 ? '60px' : ''
+      this.$refs.recommand.style.bottom = bottom // 增加底部距离
+      this.$refs.scroll.refresh() // 重新刷新scroll组件
+    },
     // 请求推荐界面
     _getRecommand() {
       getRecommand().then((res) => {

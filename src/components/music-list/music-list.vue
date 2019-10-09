@@ -35,6 +35,7 @@
 import Scroll from 'base/scroll/scroll.vue'
 import SongList from 'base/song-list/song-list.vue'
 import Loading from 'base/loading/loading.vue'
+import { playListMixins } from 'commons/js/mixins.js'
 import { mapActions } from 'vuex'
 const RESERVER_HEIGHT = 40
 export default {
@@ -55,6 +56,7 @@ export default {
       default: ''
     }
   },
+  mixins: [playListMixins],
   data() {
     return {
       scrollY: 0
@@ -82,6 +84,17 @@ export default {
     }
   },
   methods: {
+    /**
+     * 描述: 迷你播放器存在时调整列表高度  
+     * 参数:
+     *       playList: 歌曲列表  
+     * 功能: 增加歌曲列表距离底部的距离，避免被迷你播放器遮挡  
+     */
+    handleMiniPlayer(playList) {
+      const bottom = playList.length > 0 ? '60px' : ''
+      this.$refs.list.$el.style.bottom = bottom // 增加底部距离
+      this.$refs.list.refresh() // 重新刷新scroll组件
+    },
     scroll(pos) {
       // Y轴滚动的距离
       this.scrollY = pos.y

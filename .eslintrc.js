@@ -27,6 +27,7 @@ module.exports = {
       'eol-last': 0,
       'space-before-function-paren': 0,
       "prefer-const": 0,
-      "quote-props":0
+      "quote-props":0,
+      'no-trailing-spaces':0
     }
   }

@@ -92,6 +92,9 @@ export default {
     Loading
   },
   methods: {
+    refresh() {
+      this.$refs.listview.refresh() // 滚动组件刷新
+    },
     // 派发事件
     selectItem(item) {
       this.$emit('select', item)

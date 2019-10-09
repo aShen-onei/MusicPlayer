@@ -22,14 +22,14 @@
         @touchmove="touchMiddleMove"
         @touchend="touchMiddleEnd"
       >
-        <div class="middle-l">
+        <div class="middle-l" ref="middleL">
           <div class="cd-wrapper" ref="cdWrapper">
             <div class="cd" :class="cdRotate">
               <img :src="currentSong.image" alt="¿" class="image">
             </div>
           </div>
           <div class="playing-lyric-wrapper">
-            <div class="playing-lyric"></div>
+            <div class="playing-lyric">{{playLyric}}</div>
           </div>
         </div>
         <Scroll class="middle-r" ref="lyricList" :data="currentLyric && currentLyric.lines">
@@ -119,6 +119,7 @@ export default {
       currentLyric: null, // 歌词
       currentTime: 0, // 时间
       radius: 32,
+      playLyric: '', // 正在播放的歌词
       currentShowDot: 'cd', // 播放器点的显示
       currentLineNum: 0 // 正确的歌词行号
     }
@@ -232,21 +233,32 @@ export default {
     // 播放器播放暂停
     togglePlaying() {
       this.setPlayingState(!this.playing)
+      if (this.currentLyric) this.currentLyric.togglePlay()
     },
     // 播放器上一曲定义
     prev() {
       // if (!this.songReady) return
       let index = this.currentIndex - 1
-      if (index === -1) index = this.playList.length - 1
-      this.setCurrentIndex(index)
+      if (this.playList.length === 1) {
+        this._loop()
+      } else {
+        if (index === -1) index = this.playList.length - 1
+        this.setCurrentIndex(index)
+        if (!this.playing) this.togglePlaying()
+      }
       // this.songReady = false
     },
     // 播放器下一曲定义
     next() {
       // if (!this.songReady) return
       let index = this.currentIndex + 1
-      if (index === this.playList.length) index = 0
-      this.setCurrentIndex(index)
+      if (this.playList.length === 1) {
+        this._loop()
+      } else {
+        if (index === this.playList.length) index = 0
+        this.setCurrentIndex(index)
+        if (!this.playing) this.togglePlaying()
+      }
       // this.songReady = false
     },
     /**
@@ -255,7 +267,8 @@ export default {
      * 功能:
      */
     end() {
-      if (this.playMode === playMode.loop) {
+      console.log(this.playMode)
+      if (this.mode === playMode.loop) {
         this._loop()
       } else {
         // 下一首
@@ -270,6 +283,7 @@ export default {
     _loop() {
       // 设置时间为0
       this.$refs.audio.currentTime = 0
+      if (this.currentLyric) this.currentLyric.seek(0)
       this.$refs.audio.play()
     },
     // 当歌曲加载完成
@@ -294,8 +308,10 @@ export default {
     },
     // 进度条子组件派发的事件，进度条移动的自适应改变
     onProgressChange(precent) {
-      this.$refs.audio.currentTime = this.currentSong.duration * precent
+      const currentTime = this.currentSong.duration * precent
+      this.$refs.audio.currentTime = currentTime
       if (!this.playing) this.togglePlaying()
+      if (this.currentLyric) this.currentLyric.seek(currentTime * 1000) // 歌词跳动
     },
     // 改变歌曲的播放模式
     changeMode() {
@@ -319,12 +335,18 @@ export default {
       })
       this.setCurrentIndex(index)
     },
+    /**
+     * 描述: 滑动开始
+     */
     touchMiddleStart(e) {
       this.touch.init = true
       const touch = e.touches[0]
       this.touch.StartX = touch.pageX
       this.touch.StartY = touch.pageY
     },
+    /**
+     * 描述: 滑动中
+     */
     touchMiddleMove(e) {
       if (!this.touch.init) return
       const touch = e.touches[0]
@@ -333,11 +355,43 @@ export default {
       // 如果Y轴的偏移比X轴的偏移要大，则认为上滑，不触发左右滑动
       if (Math.abs(deltY) > Math.abs(deltX)) return
       const left = this.currentShowDot === 'cd' ? 0 : -window.innerWidth // 歌词部分距离右边距的距离
-      const width = Math.min(0, Math.max(-window.innerWidth, left + deltX)) // 偏移量
-      this.$refs.lyricList.$el.style.transform = `translate3d(${width}px, 0, 0)`
+      const offsetWidth = Math.min(0, Math.max(-window.innerWidth, left + deltX)) // 偏移量
+      this.touch.precent = Math.abs(offsetWidth / window.innerWidth) // 设置滑动的宽度与屏幕占比
+      this.$refs.lyricList.$el.style.transform = `translate3d(${offsetWidth}px, 0, 0)`
+      this.$refs.lyricList.$el.style.transitionDuration = 0
+      this.$refs.middleL.style.opacity = 1 - this.touch.precent // 透明度
     },
+    /**
+     * 描述: 滑动完成
+     */
     touchMiddleEnd(e) {
-
+      let offsetWidth = 0 // 滑动的偏移量
+      let opacity // 透明度
+      // 从右向左滑
+      if (this.currentShowDot === 'cd') {
+        if (this.touch.precent > 0.1) {
+          offsetWidth = -window.innerWidth // 滑动超过10%放开，自动滑完
+          this.currentShowDot = 'lyric' // 下面的点效果
+          opacity = 0 // 透明度
+        } else {
+          offsetWidth = 0
+          opacity = 1
+        }
+      } else {
+        // 从左向右滑
+        if (this.touch.precent < 0.9) {
+          offsetWidth = 0
+          this.currentShowDot = 'cd'
+          opacity = 1
+        } else {
+          offsetWidth = -window.innerWidth
+          opacity = 0
+        }
+      }
+      const times = 300
+      this.$refs.lyricList.$el.style.transform = `translate3d(${offsetWidth}px, 0, 0)`
+      this.$refs.middleL.style.opacity = opacity
+      this.$refs.lyricList.$el.style.transitionDuration = `${times}ms`
     },
     /**
      * 描述: 获取歌词并处理
@@ -347,10 +401,13 @@ export default {
     _getLyrics() {
       this.currentSong.getLyrics().then((lyric) => {
         this.currentLyric = new Lyric(lyric, this._handleLyric) // 使用lyric-parser来处理歌词
-        console.log(this.currentLyric)
         if (this.playing) {
           this.currentLyric.play()
         }
+      }).catch(() => {
+        this.currentLyric = null
+        this.playLyric = ''
+        this.currentLineNum = 0
       })
     },
     /**
@@ -367,6 +424,7 @@ export default {
       } else {
         this.$refs.lyricList.scroll.scrollToElement(0, 0, 1000)
       }
+      this.playLyric = text
     },
     // 格式化秒
     _pad(num, n = 2) {
@@ -410,6 +468,7 @@ export default {
           baseUrl += purl.purl
         })
         this.url = baseUrl
+        if (this.currentLyric) this.currentLyric.stop()
         // 播放
         if (this.playing) {
           this.$nextTick(() => {
